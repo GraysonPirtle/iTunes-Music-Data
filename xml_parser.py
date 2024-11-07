@@ -6,6 +6,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from datetime import datetime
 import os
+from tqdm import tqdm
+
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
 
 path = os.path.realpath(__file__)                        #| Gets the directory
 directory = os.path.dirname(path)                        #| for the iTunes
@@ -259,25 +263,25 @@ def play_to_skip_ratio(play_skip_df):
     # Create a mask for outliers
     outlier_mask = (play_z_scores > threshold) | (skip_z_scores > threshold)
 
-    max_x = max(play_skip_df.loc[outlier_mask, 'Play Count'].astype(float)) #Find the most played song by play count.
-    max_y = max(play_skip_df.loc[outlier_mask, 'Skip Count'].astype(float)) #Find the most skipped song by skip count.
+    max_x = max(play_skip_df.loc[outlier_mask, 'Play Count'].astype(float))  # Find the most played song by play count.
+    max_y = max(play_skip_df.loc[outlier_mask, 'Skip Count'].astype(float))    # Find the most skipped song by skip count.
 
-    #This chunk gets the name of the most *played* song to display on the scatterplot
+    # This chunk gets the name of the most *played* song to display on the scatterplot
     max_play_song = play_skip_df[play_skip_df['Play Count'] == max_x]['Name']
-    max_play_song_name = play_skip_df.loc[play_skip_df[play_skip_df.columns[0]] == max_play_song.values[0], 'Name']
-    max_play_song_plays = play_skip_df.loc[play_skip_df[play_skip_df.columns[0]] == max_play_song.values[0], 'Play Count']
-    max_play_song_skips = play_skip_df.loc[play_skip_df[play_skip_df.columns[0]] == max_play_song.values[0], 'Skip Count']
+    max_play_song_name = play_skip_df.loc[play_skip_df[play_skip_df.columns[0]] == max_play_song.iloc[0], 'Name'].iloc[0]
+    max_play_song_plays = play_skip_df.loc[play_skip_df[play_skip_df.columns[0]] == max_play_song.iloc[0], 'Play Count'].iloc[0]
+    max_play_song_skips = play_skip_df.loc[play_skip_df[play_skip_df.columns[0]] == max_play_song.iloc[0], 'Skip Count'].iloc[0]
 
-    #This chunk gets the name of the most *skipped* song to display on the scatterplot
+    # This chunk gets the name of the most *skipped* song to display on the scatterplot
     max_skip_song = play_skip_df[play_skip_df['Skip Count'] == max_y]['Name']
-    max_skip_song_name = play_skip_df.loc[play_skip_df[play_skip_df.columns[0]] == max_skip_song.values[0], 'Name']
-    max_skip_song_plays = play_skip_df.loc[play_skip_df[play_skip_df.columns[0]] == max_skip_song.values[0], 'Play Count']
-    max_skip_song_skips = play_skip_df.loc[play_skip_df[play_skip_df.columns[0]] == max_skip_song.values[0], 'Skip Count']
+    max_skip_song_name = play_skip_df.loc[play_skip_df[play_skip_df.columns[0]] == max_skip_song.iloc[0], 'Name'].iloc[0]
+    max_skip_song_plays = play_skip_df.loc[play_skip_df[play_skip_df.columns[0]] == max_skip_song.iloc[0], 'Play Count'].iloc[0]
+    max_skip_song_skips = play_skip_df.loc[play_skip_df[play_skip_df.columns[0]] == max_skip_song.iloc[0], 'Skip Count'].iloc[0]
 
     # Plot only the outliers
     plt.scatter(play_skip_df.loc[outlier_mask, 'Play Count'].astype(float), play_skip_df.loc[outlier_mask, 'Skip Count'].astype(float))
-    plt.annotate(max_play_song_name.values[0], xy=(max_play_song_plays, max_play_song_skips), xytext=(0,0), textcoords='offset points', ha='center') #| These two lines label the most played and most
-    plt.annotate(max_skip_song_name.values[0], xy=(max_skip_song_plays, max_skip_song_skips), xytext=(0,0), textcoords='offset points', ha='center') #| skipped songs in the scatterplot.
+    plt.annotate(max_play_song_name, xy=(max_play_song_plays, max_play_song_skips), xytext=(0,0), textcoords='offset points', ha='center')  # Label the most played song
+    plt.annotate(max_skip_song_name, xy=(max_skip_song_plays, max_skip_song_skips), xytext=(0,0), textcoords='offset points', ha='center')  # Label the most skipped song
     plt.xlabel('Play Count')
     plt.ylabel('Skip Count')
 
@@ -306,36 +310,44 @@ def write_to_csv(df):
     artists.sort()
 
     cont = False
-    while not cont: # Data Validation Loop
+    while not cont:  # Data Validation Loop
         choice = input("Which artist do you want to see specific data about?: ")
         if choice in artists:
             cont = True
         else:
             data = input("Artist not found in list. Would you like to see a list of valid artist names? (Y/N): ")
-            if data == 'Y' or data =='y':
+            if data == 'Y' or data == 'y':
                 pprint(artists)
             else:
                 cont = False
 
     df = milliseconds_to_ms(df.copy(True))
-    specify_artist(df.copy(True), choice)
-    all_most_played_artists(df.copy(True), 10)
-    top_20_artists(df.copy(True))
-    most_skipped_artists(df.copy(True))
-    release_year_to_play_count(df.copy(True))
-    skip_pct_genre(df.copy(True))
-    highest_skip_pct(df.copy(True))
-    ratings_vs_play_counts(df.copy(True))
-    play_to_skip_ratio(df.copy(True))
 
-    df = df.rename(columns={'Total Time': 'Song Length', 'Year': 'Release Year'})
+    # List of functions to call with their respective arguments
+    functions_to_call = [
+        (specify_artist, (df.copy(True), choice)),
+        (all_most_played_artists, (df.copy(True), 10)),
+        (top_20_artists, (df.copy(True),)),
+        (most_skipped_artists, (df.copy(True),)),
+        (release_year_to_play_count, (df.copy(True),)),
+        (skip_pct_genre, (df.copy(True),)),
+        (highest_skip_pct, (df.copy(True),)),
+        (ratings_vs_play_counts, (df.copy(True),)),
+        (play_to_skip_ratio, (df.copy(True),))
+    ]
 
-    df.to_csv(directory + '\\output\\_Music Data.csv', index=False)
+    for func, args in tqdm(functions_to_call, desc="Processing", unit="function"):  #| Generates the loading bar. Ran into issues with varied arguments,
+        func(*args)  # Unpack the arguments for each function                       #| and this turned out to be the solution.
 
-    # Use ExcelWriter to write to an Excel file
-    output_file_path = directory + '\\output\\_Music Data.xlsx'
-    with pd.ExcelWriter(output_file_path, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Music Data')
+    df = df.rename(columns={'Total Time': 'Song Length', 'Year': 'Release Year', 'Name': 'Song Title'})
+
+    df.to_csv(directory + '\\output\\_Music Data.csv', index=False)         #| General .csv filetype for viewing without excel.
+
+    output_file_path = directory + '\\output\\_Music Data.xlsx'             #| Writes the file as
+    with pd.ExcelWriter(output_file_path, engine='xlsxwriter') as writer:   #| an xlsx in case I want
+        df.to_excel(writer, index=False, sheet_name='Music Data')           #| to implement conditional formatting later.
+
+    print(f"Done! Files are located at {directory}.")
 
 def main():
     interesting_data = ['Name', 'Artist', 'Album', 'Genre', 'Total Time', 'Year', 'Date Added', 'Play Count', 'Skip Count', 'Rating']
